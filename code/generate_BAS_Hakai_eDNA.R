@@ -1,7 +1,11 @@
+# code by Patrick Thompson
+# April 2021
+# patrick.thompson@dfo-mpo.gc.ca
+
+#load packages#####
 library(BASMasterSample)
 library(rgdal)
 library(sf)
-library(ggsflabel)
 library(tidyverse)
 library(cowplot)
 library(RColorBrewer)
