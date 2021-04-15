@@ -186,4 +186,3 @@ area_plot_color+
   geom_sf(data = halton_boxes_giant_kelp, fill = colV[2], alpha = 0.6)+
   geom_sf(data = halton_boxes_bull_kelp, fill = colV[1], alpha = 0.6)+
   geom_sf(data = halton_boxes_seagrass, fill = colV[3], alpha = 0.6)
-
