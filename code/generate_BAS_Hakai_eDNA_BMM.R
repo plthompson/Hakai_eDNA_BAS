@@ -54,7 +54,12 @@ area_plot_color <- ggplot()+
   geom_sf(data = habitat_line_features, aes(color = habitat), size = 0.5)+
   scale_color_brewer(palette = "Dark2", name = "")+
   theme(legend.justification=c(0,0), legend.position=c(0,0))
-cxvx
+
+#read in legacy sites
+nearshore_legacy_sites <- readOGR("./spatial_data/nearshore_legacy_sites.gpkg")
+
+nearshore_legacy_sites <- st_as_sf(nearshore_legacy_sites)
+
 #stratified BAS sample
 #choose how many sites in each polygon in the dataset - I matched these to the numbers in Ben's proposal
 N_Zone <- c("20to50m_highrug" = 40,
@@ -109,9 +114,15 @@ ggplot()+
   geom_sf(data = research_area, fill = NA)+
   geom_sf(data = habitat_line_features, size = 0.1)+
   geom_sf(data = areaBAS, aes(fill = layer), size = 2, pch = 21)+
+  geom_sf(data = nearshore_legacy_sites, aes(fill = Program), size = 2, pch = 21)+
   scale_fill_brewer(palette = "Set1", name = "")
 ggsave("./figures/BAS_polygon_method.pdf", height = 6, width = 6)
 
+writeOGR(areaBAS, "areaBAS", driver="ESRI Shapefile")
+
+?writeOGR
+
+orgDrivers()
 
 #halton box method#####
 # note - bounding box should be all of BC to make boxes align with greater BC BAS
