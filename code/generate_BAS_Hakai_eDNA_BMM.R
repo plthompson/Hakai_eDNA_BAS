@@ -118,6 +118,12 @@ ggplot()+
   scale_fill_brewer(palette = "Set1", name = "")
 ggsave("./figures/BAS_polygon_method.pdf", height = 6, width = 6)
 
+ggplot()+
+  geom_sf(data = research_area, fill = NA)+
+  geom_sf(data = nearshore_legacy_sites, aes(fill = Habitat), size = 2, pch = 21)+
+  scale_fill_brewer(palette = "Set1", name = "")
+ggsave("./figures/legacy sites.pdf", height = 6, width = 6)
+
 writeOGR(areaBAS, "areaBAS", driver="ESRI Shapefile")
 
 ?writeOGR
