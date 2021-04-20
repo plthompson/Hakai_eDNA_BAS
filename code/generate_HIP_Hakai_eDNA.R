@@ -11,7 +11,7 @@ library(data.table)
 library(raster)
 
 #FOR PAUL
-setwd('../')
+#setwd('../')
 
 #change plot theme####
 source("./code/functions/plot_theme.R")
@@ -22,7 +22,7 @@ research_area <- readOGR("./spatial_data/calvert_research_area.gpkg")
 research_area <- st_as_sf(research_area, wtk = geometry)
 area_plot <- ggplot()+
   geom_sf(data = research_area, fill = NA)
-area_plot
+#area_plot
 
 #read in habitat lines
 habitat_line_features <- readOGR("./spatial_data/habitat_line_features.gpkg")
@@ -39,9 +39,9 @@ box_size <- 2000 #chose size of halton box
 
 halton_boxes <- point2Frame(pts = habitat_line_features, bb = bb, size = box_size)
 
-area_plot+
-  geom_sf(data = habitat_line_features, size = 0.3) +
-  geom_sf(data = halton_boxes, fill = NA, size = 0.3, color = 1)
+#area_plot+
+#  geom_sf(data = habitat_line_features, size = 0.3) +
+#  geom_sf(data = halton_boxes, fill = NA, size = 0.3, color = 1)
 
 #perform Halton Iterative Partitioning####
 #library(devtools)
