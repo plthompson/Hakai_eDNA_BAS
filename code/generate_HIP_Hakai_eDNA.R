@@ -11,7 +11,7 @@ library(data.table)
 library(raster)
 
 #FOR PAUL
-# setwd('../')
+setwd('../')
 
 #change plot theme####
 source("./code/functions/plot_theme.R")
@@ -32,7 +32,7 @@ habitat_line_features <- st_as_sf(habitat_line_features)
 # note - bounding box should be all of BC to make boxes align with greater BC BAS
 # however this is slow and so for now we will use the study region as the bounding box
 #make bounding box
-bb <- buildMS(research_area, d = 2, FALSE)
+bb <- buildMS(research_area, d = 2, showOutput = FALSE, rotate = FALSE)
 
 boxes <- 50 #choose number of sites to include
 box_size <- 2000 #chose size of halton box
