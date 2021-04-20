@@ -11,7 +11,7 @@ library(data.table)
 library(raster)
 
 #FOR PAUL
-setwd('../')
+# setwd('../')
 
 #change plot theme####
 source("./code/functions/plot_theme.R")
