@@ -11,7 +11,7 @@ library(data.table)
 library(raster)
 
 #FOR PAUL
-#setwd('../')
+setwd('../')
 
 #change plot theme####
 source("./code/functions/plot_theme.R")
@@ -32,7 +32,10 @@ habitat_line_features <- st_as_sf(habitat_line_features)
 # note - bounding box should be all of BC to make boxes align with greater BC BAS
 # however this is slow and so for now we will use the study region as the bounding box
 #make bounding box
-bb <- buildMS(research_area, d = 2, showOutput = FALSE, rotate = FALSE)
+# bb <- buildMS(research_area, d = 2, showOutput = FALSE, rotate = FALSE)
+# MARINE MS, need to add the seed to it for it to work.
+bb <- getBB()
+attr(bb, "seed") <- getSeed()
 
 boxes <- 50 #choose number of sites to include
 box_size <- 2000 #chose size of halton box
@@ -61,7 +64,10 @@ n.boxes <- length(table(HSS.pts$HIPIndex))
 # Chooses a sample from all boxes. Small wrapper function.
 n <- 20
 pts.new <- getSamples(HSS.pts, n = n)
-HIPBoxes <- st_as_sf(getHIPBoxes(hip = HSS.pts, bb = bbox, n = n.boxes, base = c(2,3)))
+# Bounding box to clip the HIP boxes to.
+bb.tmp <- st_bbox(research_area)
+bbox2 <- cbind(c(bb.tmp['xmin'], bb.tmp['ymin']), c(bb.tmp['xmax'], bb.tmp['ymax']))
+HIPBoxes <- st_as_sf(getHIPBoxes(hip = HSS.pts, bb = bbox2, n = n.boxes, base = c(2,3)))
 HIPBoxes <- st_set_crs(HIPBoxes, value = st_crs(halton_boxes)) #something is wrong here since the HIP boxes don't line up properly
 
 halton_boxes_select <- halton_boxes %>% filter(HaltonIndex %in% pts.new$index)
