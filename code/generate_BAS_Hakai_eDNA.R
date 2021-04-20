@@ -45,22 +45,26 @@ area_plot_color <- ggplot()+
   scale_color_brewer(palette = "Dark2", name = "")+
   theme(legend.justification=c(0,0), legend.position=c(0,0))
 
+area_plot_color
+
 #stratified BAS sample
 #choose how many sites in each polygon in the dataset - I matched these to the numbers in Ben's proposal
-N_Zone <- c("20to50m_highrug" = 40,
-            "20to50m_lowrug" = 20,
-            "bull_kelp5m" = 20,
-            "giant_kelp5m" = 20,
-            "seagrass5m" = 40,
-            "unclassified5m" = 60)
+N_Zone <- c("high_rugosity" = 40,
+            "low_rugosity" = 20,
+            "bull_kelp" = 20,
+            "giant_kelp" = 20,
+            "seagrass" = 40,
+            "unclassified" = 60)
 
-areaBAS <- masterSample(shp = habitat_polygon_features, N = N_Zone, stratum = "layer")
+areaBAS <- masterSample(shp = habitat_polygon_features, N = N_Zone, stratum = "hab")
 areaBAS$layer <- c(rep(names(N_Zone)[1], N_Zone[1]),
                    rep(names(N_Zone)[2], N_Zone[2]),
                    rep(names(N_Zone)[3], N_Zone[3]),
                    rep(names(N_Zone)[4], N_Zone[4]),
                    rep(names(N_Zone)[5], N_Zone[5]),
                    rep(names(N_Zone)[6], N_Zone[6]))
+
+head(habitat_polygon_features)
 
 #how many unique sample locations do we have? (because some overlap across the different habitat layers)
 areaBAS %>%
@@ -110,11 +114,11 @@ ggsave("./figures/BAS_polygon_method.pdf", height = 6, width = 6)
 bb <- buildMS(research_area, d = 2, FALSE)
 
 #first check that halton boxes of different size line up
-halton_boxes_0.02 <- point2Frame(pts = habitat_line_features, bb = bb, size = 0.02) %>%
+halton_boxes_0.02 <- point2Frame(pts = habitat_line_features, bb = bb, size = 2000) %>%
   arrange(HaltonIndex) %>%
   top_n(wt = HaltonIndex, n = -4) #select the number of boxes. The - sign indicates to take the lowest values
 
-halton_boxes_0.05 <- point2Frame(pts = habitat_line_features, bb = bb, size = 0.05) %>%
+halton_boxes_0.05 <- point2Frame(pts = habitat_line_features, bb = bb, size = 5000) %>%
   arrange(HaltonIndex) %>%
   top_n(wt = HaltonIndex, n = -6)
 

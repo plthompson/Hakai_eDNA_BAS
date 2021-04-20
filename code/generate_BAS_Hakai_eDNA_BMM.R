@@ -31,6 +31,9 @@ research_area <- st_as_sf(research_area, wtk = geometry)
 area_plot <- ggplot()+
   geom_sf(data = research_area, fill = NA)
 
+area_plot
+
+end
 #polygon based BAS####
 # this is equivalent to the random method that Ben used, but with two advantages
 # 1 - it should have better spatial balance - I need to check this because the polygons don't represent a continuous area
@@ -40,6 +43,12 @@ area_plot <- ggplot()+
 habitat_polygon_features <- readOGR("./spatial_data/habitat_polygon_features.gpkg")
 
 habitat_polygon_features <- st_as_sf(habitat_polygon_features)
+
+#read in habitat polygons with legacy removed
+habitat_polygon_features_legacyremoved <- readOGR("./spatial_data/habitat_polygon_features_legacyremoved.gpkg")
+
+habitat_polygon_features_legacyremoved <- st_as_sf(habitat_polygon_features_legacyremoved)
+
 
 #read in habitat lines
 habitat_line_features <- readOGR("./spatial_data/habitat_line_features.gpkg")
@@ -51,9 +60,11 @@ area_plot <- area_plot+
 
 area_plot_color <- ggplot()+
   geom_sf(data = research_area, fill = NA)+
-  geom_sf(data = habitat_line_features, aes(color = habitat), size = 0.5)+
+  geom_sf(data = habitat_polygon_features, aes(color = hab), size = 0.5)+
   scale_color_brewer(palette = "Dark2", name = "")+
   theme(legend.justification=c(0,0), legend.position=c(0,0))
+
+area_plot_color
 
 #read in legacy sites
 nearshore_legacy_sites <- readOGR("./spatial_data/nearshore_legacy_sites.gpkg")
@@ -134,14 +145,14 @@ orgDrivers()
 # note - bounding box should be all of BC to make boxes align with greater BC BAS
 # however this is slow and so for now we will use the study region as the bounding box
 #make bounding box
-bb <- buildMS(research_area, d = 2, FALSE)
+bb <- buildMS(research_area, d = 9, FALSE)
 
 #first check that halton boxes of different size line up
-halton_boxes_0.02 <- point2Frame(pts = habitat_line_features, bb = bb, size = 0.02) %>%
+halton_boxes_0.02 <- point2Frame(pts = habitat_line_features, bb = bb, size = 1000) %>%
   arrange(HaltonIndex) %>%
   top_n(wt = HaltonIndex, n = -4) #select the number of boxes. The - sign indicates to take the lowest values
 
-halton_boxes_0.05 <- point2Frame(pts = habitat_line_features, bb = bb, size = 0.05) %>%
+halton_boxes_0.05 <- point2Frame(pts = habitat_line_features, bb = bb, size = 2000) %>%
   arrange(HaltonIndex) %>%
   top_n(wt = HaltonIndex, n = -6)
 
@@ -156,29 +167,44 @@ area_plot_color+
 boxes <- 50 #choose number of sites to include
 box_size <- 0.02 #chose size of halton box
 
-halton_boxes_seagrass <- point2Frame(pts = habitat_line_features %>% filter(habitat == "seagrass"), bb = bb, size = box_size) %>%
+halton_boxes_seagrass <- point2Frame(pts = habitat_polygon_features_legacyremoved %>% filter(hab == "seagrass"), bb = bb, size = 1000) %>%
   arrange(HaltonIndex) %>%
-  top_n(wt = HaltonIndex, n = -boxes)
+  top_n(wt = HaltonIndex, n = -40)
 
-halton_boxes_bull_kelp <- point2Frame(pts = habitat_line_features %>% filter(habitat == "bull_kelp"), bb = bb, size = box_size) %>%
+halton_boxes_bull_kelp <- point2Frame(pts = habitat_polygon_features_legacyremoved %>% filter(hab == "bull_kelp"), bb = bb, size = 1000) %>%
   arrange(HaltonIndex) %>%
-  top_n(wt = HaltonIndex, n = -boxes)
+  top_n(wt = HaltonIndex, n = -20)
 
-halton_boxes_giant_kelp <- point2Frame(pts = habitat_line_features %>% filter(habitat == "giant_kelp"), bb = bb, size = box_size) %>%
+halton_boxes_giant_kelp <- point2Frame(pts = habitat_polygon_features_legacyremoved %>% filter(hab == "giant_kelp"), bb = bb, size = 1000) %>%
   arrange(HaltonIndex) %>%
-  top_n(wt = HaltonIndex, n = -boxes)
+  top_n(wt = HaltonIndex, n = -20)
 
-halton_boxes_unclassified <- point2Frame(pts = habitat_line_features %>% filter(habitat == "unclassified"), bb = bb, size = box_size) %>%
+halton_boxes_unclassified <- point2Frame(pts = habitat_polygon_features_legacyremoved %>% filter(hab == "unclassified"), bb = bb, size = 1000) %>%
   arrange(HaltonIndex) %>%
-  top_n(wt = HaltonIndex, n = -boxes)
+  top_n(wt = HaltonIndex, n = -60)
+
+halton_boxes_highrugosity <- point2Frame(pts = habitat_polygon_features_legacyremoved %>% filter(hab == "high_rugosity"), bb = bb, size = 1000) %>%
+  arrange(HaltonIndex) %>%
+  top_n(wt = HaltonIndex, n = -40)
+
+halton_boxes_lowrugosity <- point2Frame(pts = habitat_polygon_features_legacyremoved %>% filter(hab == "low_rugosity"), bb = bb, size = 1000) %>%
+  arrange(HaltonIndex) %>%
+  top_n(wt = HaltonIndex, n = -20)
+
+
+
 
 sample.df <- full_join(data.frame(HaltonIndex = halton_boxes_seagrass$HaltonIndex,Seagrass = TRUE),
                        data.frame(HaltonIndex = halton_boxes_bull_kelp$HaltonIndex, BullKelp = TRUE)) %>%
   full_join(data.frame(HaltonIndex = halton_boxes_giant_kelp$HaltonIndex, GiantKelp = TRUE)) %>%
   full_join(data.frame(HaltonIndex = halton_boxes_unclassified$HaltonIndex, Unclassified = TRUE)) %>%
+  full_join(data.frame(HaltonIndex = halton_boxes_highrugosity$HaltonIndex, Unclassified = TRUE)) %>%
+  full_join(data.frame(HaltonIndex = halton_boxes_lowrugosity$HaltonIndex, Unclassified = TRUE)) %>%
   arrange(HaltonIndex) %>%
   group_by(HaltonIndex) %>%
   mutate(Habitats = sum(Seagrass, BullKelp, GiantKelp, Unclassified, na.rm = TRUE))
+
+
 
 ggplot(sample.df, aes(x = Habitats))+
   geom_histogram(bins = 4)
@@ -205,12 +231,25 @@ plot_grid(
     geom_sf(data = halton_boxes_unclassified, fill = NA, size = 0.3, color = 1)+
     ggtitle(label = "Unclassified"),
   nrow = 2)
-ggsave("./figures/halton_boxes.pdf", height = 8, width = 6)
+
+
+area_plot_color+
+  geom_sf(data = halton_boxes_highrugosity, fill = NA, size = 0.3, color = 1)+
+  ggtitle(label = "high rugosity")
+
+area_plot_color+
+  geom_sf(data = halton_boxes_lowrugosity, fill = NA, size = 0.3, color = 1)+
+  ggtitle(label = "high rugosity")
+
+#ggsave("./figures/halton_boxes.pdf", height = 8, width = 6)
 
 #plot all together
-area_plot_color+
-  geom_sf(data = halton_boxes_unclassified, fill = colV[4], alpha = 0.6)+
-  geom_sf(data = halton_boxes_giant_kelp, fill = colV[2], alpha = 0.6)+
-  geom_sf(data = halton_boxes_bull_kelp, fill = colV[1], alpha = 0.6)+
-  geom_sf(data = halton_boxes_seagrass, fill = colV[3], alpha = 0.6)
+area_plot+
+  geom_sf(data = halton_boxes_unclassified, fill = colV[4], alpha = 1)+
+  geom_sf(data = halton_boxes_giant_kelp, fill = colV[2], alpha = 1)+
+  geom_sf(data = halton_boxes_bull_kelp, fill = colV[1], alpha = 1)+
+  geom_sf(data = halton_boxes_seagrass, fill = colV[3], alpha = 1)+
+  geom_sf(data = halton_boxes_highrugosity, fill = colV[1], alpha = 1)+
+  geom_sf(data = halton_boxes_lowrugosity, fill = colV[3], alpha = 1)+
+  geom_sf(data = nearshore_legacy_sites, aes(color = 'blue'), alpha = 0.3)
 
