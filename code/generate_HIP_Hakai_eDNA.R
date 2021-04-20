@@ -10,6 +10,9 @@ library(tidyverse)
 library(data.table)
 library(raster)
 
+#FOR PAUL
+# setwd('../')
+
 #change plot theme####
 source("./code/functions/plot_theme.R")
 theme_set(plt_theme)
@@ -46,17 +49,19 @@ area_plot+
 source('./code/functions/HSS.r')
 
 coords <- st_coordinates(st_centroid(halton_boxes))
+bb.tmp <- st_bbox(bb)
+bbox <- cbind(c(bb.tmp['xmin'], bb.tmp['ymin']), c(bb.tmp['xmax'], bb.tmp['ymax']))
 
-bbox <- matrix(st_bbox(bb), nrow = 2, ncol = 2)
-
+# Paul: Let's add more boxes to show better spatial balance.
 HSS.pts <- getHipSample(X = coords[,1], Y = coords[,2], index = halton_boxes$HaltonIndex,
-                        N = 27, bb = bbox,  base = c(2,3), quiet = TRUE,
-                        Ps1 = 0:1, Ps2 = 0:2, hipS1 = 0:1, hipS2 = 0:2)
+                        N = 70, bb = bbox,  base = c(2,3), quiet = TRUE,
+                        Ps1 = 0:1, Ps2 = 0:2, hipS1 = 0:1, hipS2 = c(0,2,1))	# Changed the order for fun
+n.boxes <- length(table(HSS.pts$HIPIndex))
 
 # Chooses a sample from all boxes. Small wrapper function.
 n <- 20
 pts.new <- getSamples(HSS.pts, n = n)
-HIPBoxes <- st_as_sf(getHIPBoxes(hip = HSS.pts, bb = bbox, n = n, base = c(2,3)))
+HIPBoxes <- st_as_sf(getHIPBoxes(hip = HSS.pts, bb = bbox, n = n.boxes, base = c(2,3)))
 HIPBoxes <- st_set_crs(HIPBoxes, value = st_crs(halton_boxes)) #something is wrong here since the HIP boxes don't line up properly
 
 halton_boxes_select <- halton_boxes %>% filter(HaltonIndex %in% pts.new$index)
