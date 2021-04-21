@@ -41,12 +41,10 @@ end
 
 #read in habitat polygons
 habitat_polygon_features <- readOGR("./spatial_data/habitat_polygon_features.gpkg")
-
 habitat_polygon_features <- st_as_sf(habitat_polygon_features)
 
 #read in habitat polygons with legacy removed
 habitat_polygon_features_legacyremoved <- readOGR("./spatial_data/habitat_polygon_features_legacyremoved.gpkg")
-
 habitat_polygon_features_legacyremoved <- st_as_sf(habitat_polygon_features_legacyremoved)
 
 
