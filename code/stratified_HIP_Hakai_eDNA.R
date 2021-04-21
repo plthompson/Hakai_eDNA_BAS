@@ -34,7 +34,7 @@ habitat_line_features <- st_as_sf(habitat_line_features)
 bb <- getBB()
 attr(bb, "seed") <- getSeed()
 
-box_size <- 2000 #chose size of halton box
+box_size <- 200 #chose size of halton box
 habitats <- unique(habitat_line_features$habitat)
 sampleV <- c(20,20,40,60)
 selected_boxes <- list()
@@ -70,28 +70,19 @@ selected_boxes <- rbind(selected_boxes[[1]],selected_boxes[[2]], selected_boxes[
 selected_boxes %>% 
   group_by(HaltonIndex) %>% 
   summarise(n = n()) %>% 
-  ggplot(aes(x = n))+
-  geom_histogram()
+  filter(n>1)
 
 selected_boxes_points <- st_centroid(selected_boxes)
 
 area_plot+
   geom_sf(data = habitat_line_features, size = 0.3) +
-  geom_sf(data = selected_boxes, aes(color = habitat), fill = NA, size = 1)+
+  geom_sf(data = selected_boxes_points, aes(fill = habitat), color = 1, size = 3, pch = 21)+
   facet_wrap(~habitat)
 ggsave("./figures/halton_boxes_facet.pdf", height = 8, width = 8)
 
-plot_grid(
-selected_boxes %>% 
-  group_by(HaltonIndex) %>% 
-  summarise(n = n()) %>% 
-  ggplot(aes(x = n))+
-  geom_histogram(bins = 4)+
-  xlab("habitats per box"),
-
 area_plot+
   geom_sf(data = habitat_line_features, size = 0.3) +
-  geom_sf(data = selected_boxes, aes(fill = habitat), size = 0.3)+
+  geom_sf(data = selected_boxes_points, aes(fill = habitat), color = 1, size = 3, pch = 21)+
   scale_fill_brewer(palette = "Set1", name = "")+
-  theme(legend.position = c(1,1), legend.justification = c(1,1)), nrow = 1)
-ggsave("./figures/halton_boxes.pdf", height = 6, width = 10)
+  theme(legend.position = c(1,1), legend.justification = c(1,1))
+ggsave("./figures/halton_boxes.pdf", height = 6, width = 6)
