@@ -10,6 +10,7 @@ library(tidyverse)
 library(data.table)
 library(raster)
 library(cowplot)
+library(ggspatial)
 
 source('./code/functions/HSS.r')
 
@@ -34,7 +35,7 @@ habitat_line_features <- st_as_sf(habitat_line_features)
 bb <- getBB()
 attr(bb, "seed") <- getSeed()
 
-box_size <- 200 #chose size of halton box
+box_size <- 25 #chose size of halton box
 habitats <- unique(habitat_line_features$habitat)
 sampleV <- c(20,20,40,60)
 selected_boxes <- list()
@@ -84,5 +85,13 @@ area_plot+
   geom_sf(data = habitat_line_features, size = 0.3) +
   geom_sf(data = selected_boxes_points, aes(fill = habitat), color = 1, size = 3, pch = 21)+
   scale_fill_brewer(palette = "Set1", name = "")+
-  theme(legend.position = c(1,1), legend.justification = c(1,1))
+  theme(legend.position = c(1,1), legend.justification = c(1,1))+
+  ggspatial::annotation_scale(location = "bl")
 ggsave("./figures/halton_boxes.pdf", height = 6, width = 6)
+
+area_plot+
+  geom_sf(data = habitat_line_features, size = 0.3) +
+  geom_sf(data = selected_boxes, color = 2)+
+  scale_fill_brewer(palette = "Set1", name = "")+
+  coord_sf(xlim = c(855000,856000), ylim = c(750000, 751000))+
+  ggspatial::annotation_scale(location = "bl")
