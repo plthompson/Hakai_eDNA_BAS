@@ -11,7 +11,7 @@ library(data.table)
 library(raster)
 
 #FOR PAUL
-# setwd('../')
+setwd('../')
 
 #change plot theme####
 source("./code/functions/plot_theme.R")
@@ -76,3 +76,24 @@ area_plot+
   geom_sf(data = habitat_line_features, size = 0.3) +
   geom_sf(data = HIPBoxes, fill = NA)+
   geom_sf(data = halton_boxes_select, fill = NA, size = 1, color = 2)
+
+# Check Spatial Balance:
+library(rgeos)
+sp.var <- sp.var.srs <- NULL
+
+for(B in c(1, 6, 12, 24, 32, 72, 144)){
+	HSS.pts <- getHipSample(X = coords[,1], Y = coords[,2], index = halton_boxes$HaltonIndex,
+                        N = B, bb = bbox,  base = c(2,3), quiet = TRUE,
+                        Ps1 = 0:1, Ps2 = 0:2, hipS1 = 0:1, hipS2 = c(0,2,1))	# Changed the order for fun
+	sp.var <- c(sp.var, getBalance(HSS.pts, n = boxes))
+}
+
+for(i in 1:100){
+	smp <- HSS.pts[sample(nrow(HSS.pts), boxes)]
+	smp <- SpatialPoints(cbind(smp$X, smp$Y))
+	sp.var.srs <- c(sp.var.srs, getBalance(HSS.pts, n = boxes, smp = smp))
+}
+
+
+plot(c(1, 6, 12, 24, 32, 72, 144), sp.var, type = 'l', ylim = c(0, 60), main = "Variance of Voronoi Polygons")
+abline(h = mean(sp.var.srs), col = "red")	# Simple Random Sample
