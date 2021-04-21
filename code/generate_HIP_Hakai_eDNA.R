@@ -81,6 +81,7 @@ area_plot+
 library(rgeos)
 sp.var <- sp.var.srs <- NULL
 
+# HSS Sample with varying numbers of partitions but no other randomness.
 for(B in c(1, 6, 12, 24, 32, 72, 144)){
 	HSS.pts <- getHipSample(X = coords[,1], Y = coords[,2], index = halton_boxes$HaltonIndex,
                         N = B, bb = bbox,  base = c(2,3), quiet = TRUE,
@@ -88,12 +89,13 @@ for(B in c(1, 6, 12, 24, 32, 72, 144)){
 	sp.var <- c(sp.var, getBalance(HSS.pts, n = boxes))
 }
 
+# Simple Random Sample
 for(i in 1:100){
 	smp <- HSS.pts[sample(nrow(HSS.pts), boxes)]
 	smp <- SpatialPoints(cbind(smp$X, smp$Y))
 	sp.var.srs <- c(sp.var.srs, getBalance(HSS.pts, n = boxes, smp = smp))
 }
 
-
+# Plot of the spatial balance.
 plot(c(1, 6, 12, 24, 32, 72, 144), sp.var, type = 'l', ylim = c(0, 60), main = "Variance of Voronoi Polygons")
 abline(h = mean(sp.var.srs), col = "red")	# Simple Random Sample
