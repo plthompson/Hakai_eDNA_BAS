@@ -40,55 +40,42 @@ end
 # 2 - the samples have an order and this could be used to ask how much spatial coverage is needed before biodiversity saturates
 
 #read in habitat polygons
-habitat_polygon_features <- readOGR("./spatial_data/habitat_polygon_features.gpkg")
+habitat_polygon_features <- readOGR("./spatial_data/habitat_polygon_features_discretized.gpkg")
 habitat_polygon_features <- st_as_sf(habitat_polygon_features)
+habitat_polygon_features
+#this shapefile has legacy buffers around sites and "no-go" zones removed
 
-#read in habitat polygons with legacy removed
-habitat_polygon_features_legacyremoved <- readOGR("./spatial_data/habitat_polygon_features_legacyremoved.gpkg")
-habitat_polygon_features_legacyremoved <- st_as_sf(habitat_polygon_features_legacyremoved)
-
-
-#read in habitat lines
-habitat_line_features <- readOGR("./spatial_data/habitat_line_features.gpkg")
-
-habitat_line_features <- st_as_sf(habitat_line_features)
-
-area_plot <- area_plot+
-  geom_sf(data = habitat_line_features, size = 0.1)
-
-area_plot_color <- ggplot()+
-  geom_sf(data = research_area, fill = NA)+
-  geom_sf(data = habitat_polygon_features, aes(color = hab), size = 0.5)+
-  scale_color_brewer(palette = "Dark2", name = "")+
-  theme(legend.justification=c(0,0), legend.position=c(0,0))
-
-area_plot_color
 
 #read in legacy sites
-nearshore_legacy_sites <- readOGR("./spatial_data/nearshore_legacy_sites.gpkg")
+nearshore_legacy_sites <- readOGR("./spatial_data/hakai_legacy_sites.gpkg")
 
 nearshore_legacy_sites <- st_as_sf(nearshore_legacy_sites)
 
 #stratified BAS sample
 #choose how many sites in each polygon in the dataset - I matched these to the numbers in Ben's proposal
-N_Zone <- c("20to50m_highrug" = 40,
-            "20to50m_lowrug" = 20,
-            "bull_kelp5m" = 20,
-            "giant_kelp5m" = 20,
-            "seagrass5m" = 40,
-            "unclassified5m" = 60)
+# legacy sites to subtract: bull_kelp 5, giant_kelp 7, high_rugosity 0, low_rugosity 0, seagrass 16, unclassified 14
 
-areaBAS <- masterSample(shp = habitat_polygon_features, N = N_Zone, stratum = "layer")
-areaBAS$layer <- c(rep(names(N_Zone)[1], N_Zone[1]),
+N_Zone <- c("high_rugosity" = 40,
+            "low_rugosity" = 20,
+            "bull_kelp" = 15,
+            "giant_kelp" = 13,
+            "seagrass" = 24,
+            "unclassified" = 46)
+
+areaBAS <- masterSample(shp = habitat_polygon_features, N = N_Zone, stratum = "habitat")
+
+areaBAS$habitat <- c(rep(names(N_Zone)[1], N_Zone[1]),
                    rep(names(N_Zone)[2], N_Zone[2]),
                    rep(names(N_Zone)[3], N_Zone[3]),
                    rep(names(N_Zone)[4], N_Zone[4]),
                    rep(names(N_Zone)[5], N_Zone[5]),
                    rep(names(N_Zone)[6], N_Zone[6]))
 
+
+table(areaBAS$SiteID)
 #how many unique sample locations do we have? (because some overlap across the different habitat layers)
 areaBAS %>%
-  select(-layer) %>%
+  select(-habitat) %>%
   unique() %>%
   nrow()
 
@@ -120,12 +107,16 @@ ggplot(coordinates, aes(x = X, y = Y, color = SiteID))+
   scale_color_viridis_c()
 
 ggplot()+
-  geom_sf(data = research_area, fill = NA)+
-  geom_sf(data = habitat_line_features, size = 0.1)+
   geom_sf(data = areaBAS, aes(fill = layer), size = 2, pch = 21)+
-  geom_sf(data = nearshore_legacy_sites, aes(fill = Program), size = 2, pch = 21)+
   scale_fill_brewer(palette = "Set1", name = "")
-ggsave("./figures/BAS_polygon_method.pdf", height = 6, width = 6)
+
+ggplot()+
+  geom_sf(data = research_area, fill = NA)+
+  geom_sf(data = habitat_polygon_features, size = 0.1)+
+  geom_sf(data = areaBAS, aes(fill = habitat), size = 2, pch = 21)+
+  geom_sf(data = nearshore_legacy_sites, aes(fill = habitat), size = 2, pch = 21)+
+  scale_fill_brewer(palette = "Set1", name = "")
+#ggsave("./figures/BAS_polygon_method.pdf", height = 6, width = 6)
 
 ggplot()+
   geom_sf(data = research_area, fill = NA)+

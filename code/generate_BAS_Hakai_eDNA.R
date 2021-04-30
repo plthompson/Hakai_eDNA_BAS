@@ -56,7 +56,7 @@ N_Zone <- c("high_rugosity" = 40,
             "seagrass" = 40,
             "unclassified" = 60)
 
-areaBAS <- masterSample(shp = habitat_polygon_features, N = N_Zone, stratum = "hab")
+areaBAS <- masterSample(shp = habitat_polygon_features, N = N_Zone, stratum = "habitat")
 areaBAS$layer <- c(rep(names(N_Zone)[1], N_Zone[1]),
                    rep(names(N_Zone)[2], N_Zone[2]),
                    rep(names(N_Zone)[3], N_Zone[3]),
@@ -104,8 +104,10 @@ ggplot()+
   geom_sf(data = habitat_line_features, size = 0.1)+
   geom_sf(data = areaBAS, aes(fill = layer), size = 2, pch = 21)+
   scale_fill_brewer(palette = "Set1", name = "")
-ggsave("./figures/BAS_polygon_method.pdf", height = 6, width = 6)
+#ggsave("./figures/BAS_polygon_method.pdf", height = 6, width = 6)
 
+
+table(areaBAS$SiteID)
 
 #halton box method#####
 # note - bounding box should be all of BC to make boxes align with greater BC BAS

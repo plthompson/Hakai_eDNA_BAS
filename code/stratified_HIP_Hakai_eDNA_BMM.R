@@ -1,6 +1,8 @@
-# code by Patrick Thompson
+# code by Patrick Thompson (modified by Ben Millard-Martin)
 # April 2021
 # patrick.thompson@dfo-mpo.gc.ca
+
+rm(list = ls())
 
 #load packages#####
 library(BASMasterSample)
@@ -10,12 +12,9 @@ library(tidyverse)
 library(data.table)
 library(raster)
 library(cowplot)
+library(here)
 
-
-#ben's directory
-setwd("C:/Users/Ben/OneDrive - McGill University/Documents/eDNA Thesis/repos/Hakai_eDNA_BAS")
-
-source('./code/functions/HSS.r')
+source("./code/functions/HSS.r")
 
 #change plot theme####
 source("./code/functions/plot_theme.R")
@@ -23,40 +22,59 @@ theme_set(plt_theme)
 
 #load research area####
 research_area <- readOGR("./spatial_data/calvert_research_area.gpkg")
-research_area <- st_as_sf(research_area, wtk = geometry)
-area_plot <- ggplot()+
-  geom_sf(data = research_area, fill = NA)
-#area_plot
-
-#read in habitat lines
-habitat_line_features <- readOGR("./spatial_data/habitat_line_features.gpkg")
-habitat_line_features <- st_as_sf(habitat_line_features)
+research_area <- st_as_sf(research_area)
 
 #read in habitat polygons
-habitat_polygon_features <- readOGR("./spatial_data/habitat_polygon_features.gpkg")
+habitat_polygon_features <- readOGR("./spatial_data/habitat_discrete_legacyBuff.gpkg")
 habitat_polygon_features <- st_as_sf(habitat_polygon_features)
 
-#create Halton boxes#####
-#get bounding box for BC
-# MARINE MS, need to add the seed to it for it to work.
+#read in legacy sites
+legacy_sites <- readOGR("./spatial_data/hakai_legacy_sites.gpkg")
+legacy_sites <- st_as_sf(legacy_sites)
+
+#stratified BAS sample
+#draw 1000 BAS sample points from each layer
+N_Zone <- c("high_rugosity" = 1000,
+            "low_rugosity" = 1000,
+            "bull_kelp" = 1000,
+            "giant_kelp" = 1000,
+            "seagrass" = 1000,
+            "unclassified" = 1000)
+
+areaBAS <- masterSample(shp = habitat_polygon_features, N = N_Zone, stratum = "habitat")
+areaBAS$layer <- c(rep(names(N_Zone)[1], N_Zone[1]),
+                   rep(names(N_Zone)[2], N_Zone[2]),
+                   rep(names(N_Zone)[3], N_Zone[3]),
+                   rep(names(N_Zone)[4], N_Zone[4]),
+                   rep(names(N_Zone)[5], N_Zone[5]),
+                   rep(names(N_Zone)[6], N_Zone[6]))
+
+#double check that this order doesn't change
+areaBAS <- mutate(areaBAS, habitat = recode(areaBAS$layer,
+                           "giant_kelp" = 1, "bull_kelp"=2,"seagrass"=3,"unclassified"=4,"high_rugosity"=5,"low_rugosity"=6))
+
+#get bounding box for BC                                        
+# MARINE MS, need to add the seed to it for it to work.           ###not quite sure what this means
 bb <- getBB()
 attr(bb, "seed") <- getSeed()
 
-box_size <- 200 #chose size of halton box
-habitats <- unique(habitat_line_features$habitat)
-sampleV <- c(20,20,40,60)
-selected_boxes <- list()
-HIPBoxes <- list()
+
+habitats <- unique(habitat_polygon_features$habitat)
+#habitats
+# legacy sites to subtract: bull_kelp 5, giant_kelp 7, high_rugosity 0, low_rugosity 0, seagrass 16, unclassified 14 (not in order)
+sampleV <- c(13,15,24,46,40,20) # before removing legacy sites it was c(20,20,40,60,40,20) 
+selected_pts <- list()
+
 for(i in 1:length(habitats)){
   habitat <- habitats[i]
   print(habitat)
-  all_boxes <- point2Frame(pts = habitat_line_features %>% filter(habitat == habitats[i]), bb = bb, size = box_size)
-  
-  coords <- st_coordinates(st_centroid(all_boxes))
+
+  hab_pts <- filter(areaBAS, habitat == i)
+  coords <- st_coordinates(hab_pts)
   bb.tmp <- st_bbox(bb)
   bbox <- cbind(c(bb.tmp['xmin'], bb.tmp['ymin']), c(bb.tmp['xmax'], bb.tmp['ymax']))
   
-  HSS.pts <- getHipSample(X = coords[,1], Y = coords[,2], index = all_boxes$HaltonIndex,
+  HSS.pts <- getHipSample(X = coords[,1], Y = coords[,2], index = hab_pts$SiteID,
                           N = sampleV[i]*2, bb = bbox,  base = c(2,3), quiet = TRUE,
                           Ps1 = 0:1, Ps2 = 0:2, hipS1 = 0:1, hipS2 = c(0,2,1))	# Changed the order for fun
   n.boxes <- length(table(HSS.pts$HIPIndex))
@@ -64,33 +82,38 @@ for(i in 1:length(habitats)){
   # Chooses a sample from all boxes. Small wrapper function.
   n <- sampleV[i]
   pts.new <- getSamples(HSS.pts, n = n)
-  # Bounding box to clip the HIP boxes to.
-  bb.tmp <- st_bbox(research_area)
-  bbox2 <- cbind(c(bb.tmp['xmin'], bb.tmp['ymin']), c(bb.tmp['xmax'], bb.tmp['ymax']))
-  HIPBoxes[[i]] <- st_as_sf(getHIPBoxes(hip = HSS.pts, bb = bbox2, n = n.boxes, base = c(2,3)))
-  HIPBoxes[[i]] <- st_set_crs(HIPBoxes[[i]], value = st_crs(bb))
+  pts.new$habitat <- habitats[i]
   
-  selected_boxes[[i]] <- all_boxes %>% filter(HaltonIndex %in% pts.new$index) %>% mutate(habitat = habitat)
+  selected_pts[[i]] <- pts.new 
 }
 
-selected_boxes <- rbind(selected_boxes[[1]],selected_boxes[[2]], selected_boxes[[3]], selected_boxes[[4]])
+selected_pts <- rbind(selected_pts[[1]],selected_pts[[2]], selected_pts[[3]], selected_pts[[4]], selected_pts[[5]], selected_pts[[6]])
 
-selected_boxes %>% 
-  group_by(HaltonIndex) %>% 
-  summarise(n = n()) %>% 
-  filter(n>1)
+selected_points = st_as_sf(selected_pts, coords = c("X", "Y"), 
+                 crs = 3005, agr = "constant")
 
-selected_boxes_points <- st_centroid(selected_boxes)
 
-area_plot+
-  geom_sf(data = habitat_line_features, size = 0.3) +
-  geom_sf(data = selected_boxes_points, aes(fill = habitat), color = 1, size = 3, pch = 21)+
+selected_points$type <- "BAS"
+legacy_sites$type <- "legacy"
+
+t1 <- selected_points[,c(13,14,15)]
+t2 <- legacy_sites[,c(2,3,4)]
+t3 <- rbind(t1, t2)
+
+ggplot() +
+  geom_sf(data = research_area, fill = NA)+
+  geom_sf(data = habitat_polygon_features, size = 0.3) +
+  geom_sf(data = selected_points, aes(fill = habitat), color = 1, size = 3, pch = 21)+
   facet_wrap(~habitat)
-ggsave("./figures/halton_boxes_facet.pdf", height = 8, width = 8)
+ggsave("./figures/HIPpoints_facet.pdf", height = 8, width = 8)
 
-area_plot+
-  geom_sf(data = habitat_line_features, size = 0.3) +
-  geom_sf(data = selected_boxes_points, aes(fill = habitat), color = 1, size = 3, pch = 21)+
-  scale_fill_brewer(palette = "Set1", name = "")+
-  theme(legend.position = c(1,1), legend.justification = c(1,1))
-ggsave("./figures/halton_boxes.pdf", height = 6, width = 6)
+ggplot() +
+  geom_sf(data = research_area, fill = NA)+
+  geom_sf(data = habitat_polygon_features, size = 0.3) +
+  geom_sf(data = t3, aes(color = habitat, shape = type), size = 2)+
+  theme(legend.position = c(1,1), legend.justification = c(1,1)) 
+ggsave("./figures/HIPpoints.pdf", height = 8, width = 8)
+
+
+
+

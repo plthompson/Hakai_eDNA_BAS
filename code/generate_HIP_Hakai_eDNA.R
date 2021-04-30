@@ -25,6 +25,25 @@ area_plot <- ggplot()+
 habitat_line_features <- readOGR("./spatial_data/habitat_line_features.gpkg")
 habitat_line_features <- st_as_sf(habitat_line_features)
 
+
+#stratified BAS sample
+#draw 1000 BAS sample points from each layer
+N_Zone <- c("high_rugosity" = 40,
+            "low_rugosity" = 20,
+            "bull_kelp" = 20,
+            "giant_kelp" = 20,
+            "seagrass" = 40,
+            "unclassified" = 60)
+
+areaBAS <- masterSample(shp = habitat_polygon_features, N = N_Zone, stratum = "habitat")
+areaBAS$layer <- c(rep(names(N_Zone)[1], N_Zone[1]),
+                   rep(names(N_Zone)[2], N_Zone[2]),
+                   rep(names(N_Zone)[3], N_Zone[3]),
+                   rep(names(N_Zone)[4], N_Zone[4]),
+                   rep(names(N_Zone)[5], N_Zone[5]),
+                   rep(names(N_Zone)[6], N_Zone[6]))
+
+
 #create Halton boxes#####
 # note - bounding box should be all of BC to make boxes align with greater BC BAS
 # however this is slow and so for now we will use the study region as the bounding box
