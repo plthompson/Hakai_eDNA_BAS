@@ -34,12 +34,12 @@ legacy_sites <- st_as_sf(legacy_sites)
 
 #stratified BAS sample
 #draw 1000 BAS sample points from each layer
-N_Zone <- c("high_rugosity" = 1000,
-            "low_rugosity" = 1000,
-            "bull_kelp" = 1000,
-            "giant_kelp" = 1000,
-            "seagrass" = 1000,
-            "unclassified" = 1000)
+N_Zone <- c("high_rugosity" = 1000000,
+            "low_rugosity" = 1000000,
+            "bull_kelp" = 1000000,
+            "giant_kelp" = 1000000,
+            "seagrass" = 1000000,
+            "unclassified" = 1000000)
 
 areaBAS <- masterSample(shp = habitat_polygon_features, N = N_Zone, stratum = "habitat")
 areaBAS$layer <- c(rep(names(N_Zone)[1], N_Zone[1]),
@@ -105,14 +105,14 @@ ggplot() +
   geom_sf(data = habitat_polygon_features, size = 0.3) +
   geom_sf(data = selected_points, aes(fill = habitat), color = 1, size = 3, pch = 21)+
   facet_wrap(~habitat)
-ggsave("./figures/HIPpoints_facet.pdf", height = 8, width = 8)
+ggsave("./figures/HIPpoints1000000_facet.pdf", height = 8, width = 8)
 
 ggplot() +
   geom_sf(data = research_area, fill = NA)+
   geom_sf(data = habitat_polygon_features, size = 0.3) +
   geom_sf(data = t3, aes(color = habitat, shape = type), size = 2)+
   theme(legend.position = c(1,1), legend.justification = c(1,1)) 
-ggsave("./figures/HIPpoints.pdf", height = 8, width = 8)
+ggsave("./figures/HIPpoints1000000.pdf", height = 8, width = 8)
 
 
 
