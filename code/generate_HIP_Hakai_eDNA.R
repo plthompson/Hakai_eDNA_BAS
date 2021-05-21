@@ -35,14 +35,6 @@ N_Zone <- c("high_rugosity" = 40,
             "seagrass" = 40,
             "unclassified" = 60)
 
-areaBAS <- masterSample(shp = habitat_polygon_features, N = N_Zone, stratum = "habitat")
-areaBAS$layer <- c(rep(names(N_Zone)[1], N_Zone[1]),
-                   rep(names(N_Zone)[2], N_Zone[2]),
-                   rep(names(N_Zone)[3], N_Zone[3]),
-                   rep(names(N_Zone)[4], N_Zone[4]),
-                   rep(names(N_Zone)[5], N_Zone[5]),
-                   rep(names(N_Zone)[6], N_Zone[6]))
-
 
 #create Halton boxes#####
 # note - bounding box should be all of BC to make boxes align with greater BC BAS
@@ -53,7 +45,7 @@ areaBAS$layer <- c(rep(names(N_Zone)[1], N_Zone[1]),
 bb <- getBB()
 attr(bb, "seed") <- getSeed()
 
-box_size <- 2000 #chose size of halton box
+box_size <- 100 #chose size of halton box
 
 halton_boxes <- point2Frame(pts = habitat_line_features, bb = bb, size = box_size)
 
