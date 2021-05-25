@@ -9,6 +9,10 @@ library(sf)
 library(tidyverse)
 library(data.table)
 library(raster)
+library(cowplot)
+library(ggspatial)
+
+source('./code/functions/HSS.r')
 
 #change plot theme####
 source("./code/functions/plot_theme.R")
@@ -19,90 +23,89 @@ research_area <- readOGR("./spatial_data/calvert_research_area.gpkg")
 research_area <- st_as_sf(research_area, wtk = geometry)
 area_plot <- ggplot()+
   geom_sf(data = research_area, fill = NA)
-#area_plot
 
 #read in habitat lines
 habitat_line_features <- readOGR("./spatial_data/habitat_line_features.gpkg")
 habitat_line_features <- st_as_sf(habitat_line_features)
 
+#read in habitat polygons
+habitat_polygons <- readOGR("./spatial_data/habitat_line_polyRug_legbuff.gpkg")
+habitat_polygons <- st_as_sf(habitat_polygons)
+plot(habitat_polygons)
 
-#stratified BAS sample
-#draw 1000 BAS sample points from each layer
-N_Zone <- c("high_rugosity" = 40,
-            "low_rugosity" = 20,
-            "bull_kelp" = 20,
-            "giant_kelp" = 20,
-            "seagrass" = 40,
-            "unclassified" = 60)
+#function to produce HIP BAS for a habitat
+#habitats is the habitat that you are selecting sites for
+#priority habitats are habitats that would be preferentially sampled in a given halton box
+#this excludes any halton box with those habitats from consideration so that only boxes without priority habitats are slected
+habitat_HIP <- function(habitats, samples, priority_habitats = NA){
+  #create Halton boxes#####
+  #get bounding box for BC
+  # MARINE MS, need to add the seed to it for it to work.
+  bb <- getBB()
+  attr(bb, "seed") <- getSeed()
+  
+  all_boxes <- point2Frame(pts = habitat_polygons %>% filter(habitat %in% habitats), bb = bb, size = 100)
+  if(!is.na(priority_habitats)){
+    all_boxes_priority <- point2Frame(pts = habitat_polygons %>% filter(habitat %in% priority_habitats), bb = bb, size = 100)
+    all_boxes <- all_boxes %>% filter(!(HaltonIndex %in% all_boxes_priority$HaltonIndex))
+  }
+  
+  coords <- st_coordinates(st_centroid(all_boxes))
+  bb.tmp <- st_bbox(bb)
+  bbox <- cbind(c(bb.tmp['xmin'], bb.tmp['ymin']), c(bb.tmp['xmax'], bb.tmp['ymax']))
+  
+  HSS.pts <- getHipSample(X = coords[,1], Y = coords[,2], index = all_boxes$HaltonIndex,
+                          N = samples*2, bb = bbox,  base = c(2,3), quiet = TRUE,
+                          Ps1 = 0:1, Ps2 = 0:2, hipS1 = 0:1, hipS2 = c(0,2,1))	# Changed the order for fun
+  n.boxes <- length(table(HSS.pts$HIPIndex))
+  
+  # Chooses a sample from all boxes. Small wrapper function.
+  pts.new <- getSamples(HSS.pts, n = samples)
+  # Bounding box to clip the HIP boxes to.
+  bb.tmp <- st_bbox(research_area)
+  bbox2 <- cbind(c(bb.tmp['xmin'], bb.tmp['ymin']), c(bb.tmp['xmax'], bb.tmp['ymax']))
+  HIPBoxes <- st_as_sf(getHIPBoxes(hip = HSS.pts, bb = bbox2, n = n.boxes, base = c(2,3)))
+  HIPBoxes <- st_set_crs(HIPBoxes, value = st_crs(bb))
+  
+  plot(HIPBoxes)
+  
+  selected_boxes <- all_boxes %>% filter(HaltonIndex %in% pts.new$index)
+  
+  selected_boxes_points <- st_centroid(selected_boxes)
+  
+  area_plot+
+    geom_sf(data = habitat_line_features, size = 0.3) +
+    geom_sf(data = selected_boxes_points, color = 2, size = 3)
+  
+  selected_boxes <- st_intersection(habitat_polygons %>%  filter(habitat %in% habitats), selected_boxes)
+  return(selected_boxes)
+}
 
+#get samples per habitat####
+unclassified_sites <- habitat_HIP(habitats = "unclassified", samples = 40, priority_habitats = c("giant_kelp", "bull_kelp", "seagrass"))
+low_rugosity_sites <- habitat_HIP(habitats = "low_rugosity", samples = 20, priority_habitats = c("giant_kelp", "bull_kelp", "seagrass", "unclassified", "high_rugosity"))
+high_rugosity_sites <- habitat_HIP(habitats = "high_rugosity", samples = 40, priority_habitats = c("giant_kelp", "bull_kelp", "seagrass", "unclassified"))
+habitat_sites <- habitat_HIP(habitats = c("giant_kelp", "bull_kelp", "seagrass"), samples = 68)
 
-#create Halton boxes#####
-# note - bounding box should be all of BC to make boxes align with greater BC BAS
-# however this is slow and so for now we will use the study region as the bounding box
-#make bounding box
-# bb <- buildMS(research_area, d = 2, showOutput = FALSE, rotate = FALSE)
-# MARINE MS, need to add the seed to it for it to work.
-bb <- getBB()
-attr(bb, "seed") <- getSeed()
+all_sites <- bind_rows(unclassified_sites, low_rugosity_sites, high_rugosity_sites, habitat_sites) %>% 
+  group_by(HaltonIndex) %>% 
+  mutate(count = n()) %>% 
+  arrange(desc(count), HaltonIndex)
 
-box_size <- 100 #chose size of halton box
+selected_boxes_points <- st_centroid(all_sites)
 
-halton_boxes <- point2Frame(pts = habitat_line_features, bb = bb, size = box_size)
+box_count <- all_sites %>% 
+  as.data.frame() %>% 
+  dplyr::select(HaltonIndex, count) %>% 
+  unique()
 
-#area_plot+
-#  geom_sf(data = habitat_line_features, size = 0.3) +
-#  geom_sf(data = halton_boxes, fill = NA, size = 0.3, color = 1)
-
-#perform Halton Iterative Partitioning####
-#library(devtools)
-#install_github("paul-vdb/NWTMasterSample", build_vignettes = TRUE)
-source('./code/functions/HSS.r')
-
-coords <- st_coordinates(st_centroid(halton_boxes))
-bb.tmp <- st_bbox(bb)
-bbox <- cbind(c(bb.tmp['xmin'], bb.tmp['ymin']), c(bb.tmp['xmax'], bb.tmp['ymax']))
-
-# Paul: Let's add more boxes to show better spatial balance.
-HSS.pts <- getHipSample(X = coords[,1], Y = coords[,2], index = halton_boxes$HaltonIndex,
-                        N = 70, bb = bbox,  base = c(2,3), quiet = TRUE,
-                        Ps1 = 0:1, Ps2 = 0:2, hipS1 = 0:1, hipS2 = c(0,2,1))	# Changed the order for fun
-n.boxes <- length(table(HSS.pts$HIPIndex))
-
-# Chooses a sample from all boxes. Small wrapper function.
-n <- 20
-pts.new <- getSamples(HSS.pts, n = n)
-# Bounding box to clip the HIP boxes to.
-bb.tmp <- st_bbox(research_area)
-bbox2 <- cbind(c(bb.tmp['xmin'], bb.tmp['ymin']), c(bb.tmp['xmax'], bb.tmp['ymax']))
-HIPBoxes <- st_as_sf(getHIPBoxes(hip = HSS.pts, bb = bbox2, n = n.boxes, base = c(2,3)))
-HIPBoxes <- st_set_crs(HIPBoxes, value = st_crs(halton_boxes)) #something is wrong here since the HIP boxes don't line up properly
-
-halton_boxes_select <- halton_boxes %>% filter(HaltonIndex %in% pts.new$index)
+table(box_count$count)
+table(all_sites$habitat) #note this includes overlapping sites for classified habitat so this number will be lower in reality
 
 area_plot+
   geom_sf(data = habitat_line_features, size = 0.3) +
-  geom_sf(data = HIPBoxes, fill = NA)+
-  geom_sf(data = halton_boxes_select, fill = NA, size = 1, color = 2)
+  geom_sf(data = selected_boxes_points, aes(fill = factor(count)), size = 3, pch = 21)+
+  scale_fill_brewer(palette = "Set1", name = "habitats\nin box")+
+  facet_wrap(~habitat)
+ggsave("./figures/BAS_general.pdf", height = 8, width = 12)
 
-# Check Spatial Balance:
-library(rgeos)
-sp.var <- sp.var.srs <- NULL
-
-# HSS Sample with varying numbers of partitions but no other randomness.
-for(B in c(1, 6, 12, 24, 32, 72, 144)){
-	HSS.pts <- getHipSample(X = coords[,1], Y = coords[,2], index = halton_boxes$HaltonIndex,
-                        N = B, bb = bbox,  base = c(2,3), quiet = TRUE,
-                        Ps1 = 0:1, Ps2 = 0:2, hipS1 = 0:1, hipS2 = c(0,2,1))	# Changed the order for fun
-	sp.var <- c(sp.var, getBalance(HSS.pts, n = boxes))
-}
-
-# Simple Random Sample
-for(i in 1:100){
-	smp <- HSS.pts[sample(nrow(HSS.pts), boxes)]
-	smp <- SpatialPoints(cbind(smp$X, smp$Y))
-	sp.var.srs <- c(sp.var.srs, getBalance(HSS.pts, n = boxes, smp = smp))
-}
-
-# Plot of the spatial balance.
-plot(c(1, 6, 12, 24, 32, 72, 144), sp.var, type = 'l', ylim = c(0, 60), main = "Variance of Voronoi Polygons")
-abline(h = mean(sp.var.srs), col = "red")	# Simple Random Sample
