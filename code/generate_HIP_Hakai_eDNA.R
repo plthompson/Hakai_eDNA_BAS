@@ -36,7 +36,7 @@ plot(habitat_polygons)
 #function to produce HIP BAS for a habitat
 #habitats is the habitat that you are selecting sites for
 #priority habitats are habitats that would be preferentially sampled in a given halton box
-#this excludes any halton box with those habitats from consideration so that only boxes without priority habitats are slected
+#this excludes any halton box with those habitats from consideration so that only boxes without priority habitats are selected
 habitat_HIP <- function(habitats, samples, priority_habitats = NA){
   #create Halton boxes#####
   #get bounding box for BC
@@ -81,13 +81,23 @@ habitat_HIP <- function(habitats, samples, priority_habitats = NA){
   return(selected_boxes)
 }
 
+
+bb <- getBB()
+attr(bb, "seed") <- getSeed()
+  
+
+
 #get samples per habitat####
 unclassified_sites <- habitat_HIP(habitats = "unclassified", samples = 40, priority_habitats = c("giant_kelp", "bull_kelp", "seagrass"))
-low_rugosity_sites <- habitat_HIP(habitats = "low_rugosity", samples = 20, priority_habitats = c("giant_kelp", "bull_kelp", "seagrass", "unclassified", "high_rugosity"))
-high_rugosity_sites <- habitat_HIP(habitats = "high_rugosity", samples = 40, priority_habitats = c("giant_kelp", "bull_kelp", "seagrass", "unclassified"))
+deeper_sites <- masterSample(shp = habitat_polygons %>% filter(habitat %in% c("low_rugosity", "high_rugosity")), N = c("low_rugosity" = 20, "high_rugosity" = 40), stratum = "habitat", bb = bb)
+deeper_sites$habitat <- c(rep("low_rugosity", 20), rep("high_rugosity", 40))
+#these next two are if you want to use halton boxes for the low and high rugosity sites
+#low_rugosity_sites <- habitat_HIP(habitats = "low_rugosity", samples = 20, priority_habitats = c("giant_kelp", "bull_kelp", "seagrass", "unclassified", "high_rugosity"))
+#high_rugosity_sites <- habitat_HIP(habitats = "high_rugosity", samples = 40, priority_habitats = c("giant_kelp", "bull_kelp", "seagrass", "unclassified"))
 habitat_sites <- habitat_HIP(habitats = c("giant_kelp", "bull_kelp", "seagrass"), samples = 68)
 
-all_sites <- bind_rows(unclassified_sites, low_rugosity_sites, high_rugosity_sites, habitat_sites) %>% 
+
+all_sites <- bind_rows(unclassified_sites, habitat_sites) %>% #add low and high rugosity sites here if you want to use the halton box method for them
   group_by(HaltonIndex) %>% 
   mutate(count = n()) %>% 
   arrange(desc(count), HaltonIndex)
@@ -105,7 +115,8 @@ table(all_sites$habitat) #note this includes overlapping sites for classified ha
 area_plot+
   geom_sf(data = habitat_line_features, size = 0.3) +
   geom_sf(data = selected_boxes_points, aes(fill = factor(count)), size = 3, pch = 21)+
+  geom_sf(data = deeper_sites, size = 3, pch = 21, fill = "#e41a1c")+
   scale_fill_brewer(palette = "Set1", name = "habitats\nin box")+
   facet_wrap(~habitat)
-ggsave("./figures/BAS_general.pdf", height = 8, width = 12)
+ggsave("./figures/BAS_general_2.pdf", height = 8, width = 12)
 
