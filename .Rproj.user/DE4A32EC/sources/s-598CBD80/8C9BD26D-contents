@@ -128,7 +128,12 @@ all_sites <- bind_rows(selected_HIP, legacy)
 area_plot+
   geom_sf(data = habitat_line_features, size = 0.3) +
   geom_sf(data = all_sites, aes(fill = factor(count)), size = 3, pch = 21)+
-    scale_fill_brewer(palette = "Set1", name = "habitats\nin box")
+    scale_fill_brewer(palette = "Set1", name = "habitats\nin box")+
+  facet_wrap(~habitat)
 ggsave("./figures/BAS_general_1.pdf", height = 8, width = 12)
 
-
+area_plot+
+  geom_sf(data = habitat_line_features, size = 0.3) +
+  geom_sf(data = all_sites, aes(fill = factor(count)), size = 3, pch = 21)+
+  scale_fill_brewer(palette = "Set1", name = "habitats\nin box")
+ggsave("./figures/BAS_general_all.pdf", height = 8, width = 12)
