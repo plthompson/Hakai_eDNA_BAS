@@ -1,0 +1,181 @@
+#FABS summaries
+#
+#this block of code: 
+# run before the rest
+# loads all necessary packages
+# set working directory
+# read in diversity abundance, diversity length, ysi and habitat 
+# create wide data for Vegan package
+# recreate long data with 0 observations
+# clean ysi data(remove duplicates)
+# create wide temperature data from ysi data;       ##### should do for ph and salinity
+# merge temperature and habitat data with diversity abundance
+#create date variable for dl use with TropFishR
+# assign levels and names to month for da.wide.habitat.env and dl
+# 
+#
+# load packages
+rm(list=ls())
+
+library("dplyr")
+library("vegan")
+library("BiodiversityR")
+library("knitr")
+library("yaml")
+library("markdown")
+#library("MASS")
+library("magrittr")
+library("lubridate")
+library("rjags")
+library("TropFishR")
+library("mixtools")
+library("labdsv")
+library("GGally")
+library("ppcor")
+library("gclus")
+library("psych")
+library("tidyverse")
+library("vegan3d")
+library("dismo")
+
+
+
+# make fabsdivlength name of and create working file 
+setwd("C:/Users/Ben/OneDrive - McGill University/Documents/Desktop/Rwd_Ben/FABS/working_files/2021_analysis")
+
+here("C:/Users/Ben/OneDrive - McGill University/Documents/Desktop/Rwd_Ben/FABS/working_files/2021_analysis")
+
+
+# read in da, dl, ysi and habitat
+da      <- read.csv ("da2018.csv")
+dl      <- read.csv ("dl2018.csv")
+habitat <- read.csv ("hakaiBS_habitat_20142018.csv")
+habitatdist <- read.csv ("habitatdistance.csv")
+ysi     <- read.csv ("ysi2018.csv")
+
+#create da.wide
+da.wide <- da %>%
+  group_by(year, month, day, site, species) %>%
+  summarise(abundance1 = sum(abundance, na.rm = TRUE))%>%
+  spread("species", "abundance1")
+#replace na with 0
+da.wide[is.na(da.wide)] <- 0
+#create long data with null observations
+da.long <- gather(da.wide, species, abundance, argo:yero)
+
+#remove replicates and duplicates from ysi
+#ysi <- ysi[!(ysi$replicate == 2), ]              
+#ysi$replicate <- NULL
+#ysi <- unique(ysi[ ,1:10])
+
+#create levels for factors followed by conversion of factors to integers for analysis
+habitat$exposure <- as.integer(factor(habitat$exposure, 
+                                      levels = c("vp", "p", "sp", "se", "e", "ve"), 
+                                      labels = c("vp", "p", "sp", "se", "e", "ve")))
+#add habitt distances to habitat data
+habitat <- merge(habitat, habitatdist, by = "site")
+
+str(habitat)
+
+habitat$slope_subtidal <- as.integer(habitat$slope_subtidal)
+
+#create temperature wide data from ysi data; can do with salinity and ph also
+temp.wide <- ysi
+#remove other variables(ph, salinity)
+temp.wide[8:10] <- NULL
+#remove depth
+temp.wide[6] <- NULL
+#spread to wide format
+temp.wide %<>%
+  group_by(site, year, month, day, location) %>%
+  spread("location", "temp")
+colnames(temp.wide)[5:14] <- c("t.a0","t.b0","t.b1","t.c0","t.c1","t.c3","t.d0","t.d1","t.d10","t.d5")
+
+#salinity
+salinity.wide <- ysi
+#remove other variables(ph, temp)
+salinity.wide[9:10] <- NULL
+#remove depth
+salinity.wide[6:7] <- NULL
+#spread to wide format
+salinity.wide %<>%
+  group_by(site, year, month, day, location) %>%
+  spread("location", "salinity")
+colnames(salinity.wide)[5:14] <- c("s.a0","s.b0","s.b1","s.c0","s.c1","s.c3","s.d0","s.d1","s.d10","s.d5")
+
+#ph
+ph.wide <- ysi
+#remove other variables(ph, salinity)
+ph.wide[10] <- NULL
+#remove depth
+ph.wide[6:8] <- NULL
+#spread to wide format
+ph.wide %<>%
+  group_by(site, year, month, day, location) %>%
+  spread("location", "ph")
+colnames(ph.wide)[5:14] <- c("p.a0","p.b0","p.b1","p.c0","p.c1","p.c3","p.d0","p.d1","p.d10","p.d5")
+
+
+#merge temperature, salinity and ph data
+da.wide.habitat.env <- merge(da.wide, temp.wide,  
+                             by = c("year", "month", "day", "site"), 
+                             all = TRUE)
+
+da.wide.habitat.env <- merge(da.wide.habitat.env, salinity.wide,  
+                             by = c("year", "month", "day", "site"), 
+                             all = TRUE)
+
+da.wide.habitat.env <- merge(da.wide.habitat.env, ph.wide,  
+                             by = c("year", "month", "day", "site"), 
+                             all = TRUE)
+
+environmental <- merge(temp.wide, salinity.wide,  
+                       by = c("year", "month", "day", "site"), 
+                       all = TRUE) %>%
+                  merge(ph.wide,  
+                        by = c("year", "month", "day", "site"), 
+                         all = TRUE)
+
+#merge habitat data
+da.wide.habitat.env <- merge(da.wide.habitat.env, habitat, by = "site")
+da.wide.habitat.env[5] <- NULL
+
+#new variables: temperature and salinity differentials; select location (add_column)
+da.wide.habitat.env <- add_column(da.wide.habitat.env, "t.diff" = (da.wide.habitat.env$t.a0-da.wide.habitat.env$t.d5), .after = "t.d5")
+
+#assign levels to month
+da.wide.habitat.env$month <- factor(da.wide.habitat.env$month, 
+                                    levels = c(1,2,3,4,5,6,7,8,9,10,11,12), 
+                                    labels = c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"))
+
+da.long$month <- factor(da.long$month, 
+                                    levels = c(1,2,3,4,5,6,7,8,9,10,11,12), 
+                                    labels = c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"))
+
+
+#create date variable for TropFishR
+#multiple monthly sample events justify bimonthly sample units
+dl.month.dup <- dl  
+dl.month.dup$bimonth <- if_else(dl.month.dup$day < 15, 7, 22)
+dl.month.dup$date <- ymd(paste(dl.month.dup$year, dl.month.dup$month, dl.month.dup$bimonth))
+
+#assign levels to month
+dl$month <- factor(dl$month, 
+                   levels = c(1,2,3,4,5,6,7,8,9,10,11,12), 
+                   labels = c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"))
+
+#create avgerage length variable and SE of length; filter core sites
+dl.year.month.core <- dl
+dl.year.month.core <-
+  filter(dl.year.month.core, site == "ssp" | site == "hdo" | site == "pba" | site == "chp" | site == "ppo" | site == "wfb") %>%
+  group_by(year, month, species) %>%
+  summarise(se = sd(length)/sqrt((length(species))), length = mean(length))
+
+#create avgerage length variable and SE of length; filter core sites
+#same as above but for multiple cohorts(shpe)
+dl.year.month.core.cohorts <- dl
+dl.year.month.core.cohorts <-
+  filter(dl.year.month.core.cohorts, site == "ssp" | site == "hdo" | site == "pba" | site == "chp" | site == "ppo" | site == "wfb") %>%
+  group_by(year, month, species, stage) %>%
+  summarise(se = sd(length)/sqrt((length(species))), length = mean(length))
+

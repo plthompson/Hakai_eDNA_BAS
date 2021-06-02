@@ -1,0 +1,29 @@
+occ_royallink <-read.csv(choose.files())
+
+
+
+#create character vector of asvs with 0 count
+ASVcount1 <- as.data.frame(colSums(occ_royallink[2:ncol(occ_royallink)]))
+#filter for 0 count
+ASV0count1 <- filter(ASVcount1, ASVcount1[1] != 0)
+
+write.csv(ASV0count1, "C:/Users/FABS/Documents/eDNA Thesis/R_/occupancy modelling/eDNAoccupancy/royal_link_pos_detections.csv")
+
+
+ASVswith0count1 <- rownames(ASV0count1)
+#remove from asv_meta
+asv_meta[,c(ASVswith0count1)] <- NULL
+
+#create vector of good ASVs
+ASVs <- filter(ASVcount, ASVcount[1] != 0)
+ASVs <- rownames(ASVs)
+
+
+#compare total ASVs
+#PSI from eDNAocc
+psi <- read_rds(choose.files())  #PSI_by_site
+psi.binom <- as.data.frame(ifelse(psi > 0.8, 1,0))
+filter(psi.binom, rowSums(psi.binom) == 0)
+
+
+

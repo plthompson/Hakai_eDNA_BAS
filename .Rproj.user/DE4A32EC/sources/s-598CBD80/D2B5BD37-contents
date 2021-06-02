@@ -1,0 +1,56 @@
+#install.packages(eDNAoccupancy)
+#install.packages(tidyverse)
+
+library(eDNAoccupancy)
+library(tidyverse)
+
+ASVlist <- readRDS(choose.files()) # choose 'ASVlist_doraz.RData'
+surveydata <- readRDS(choose.files())
+
+occdatlist <- list()
+summarylist <- list()
+outlist <- list()
+
+for(i in 1:5606){
+  t5 <- as.data.frame(ASVlist[i])
+  Detections <- occData(t5, siteColName = 'site', sampleColName = 'filter')
+  fit = occModel(~factor(site)-1, ~factor(site)-1, ~1,
+                 niter = 100,
+                 detectionMats=Detections,
+                 siteData=surveydata,
+                 siteColName="site")
+  occdatlist[[length(occdatlist)+1]] = fit
+  summary <- posteriorSummary(fit, burnin = 50, mcError = TRUE)
+  summarylist[[length(summarylist)+1]] = summary
+  psi <- posteriorSummaryOfSiteOccupancy(fit, burnin = 50)
+  theta <- posteriorSummaryOfSampleOccupancy(fit, burnin = 50)
+  p <- posteriorSummaryOfDetection(fit, burnin = 50)
+  out <- cbind(psi = psi$median, theta = theta$median[,1], p = p$median[,1])
+  outlist[[length(occdatlist)+1]] = out
+}
+
+saveRDS(occdatlist, "C:/Users/FABS/Documents/eDNA Thesis/R_/occupancy modelling/eDNAoccupancy/occdatlist.RData")
+saveRDS(summarylist, "C:/Users/FABS/Documents/eDNA Thesis/R_/occupancy modelling/eDNAoccupancy/summarylist.RData")
+saveRDS(outlist, "C:/Users/FABS/Documents/eDNA Thesis/R_/occupancy modelling/eDNAoccupancy/outlist.RData")
+
+#omit unusuded columns in lists
+#here ASVs1:4 were duplicated and one Null object starts the list, therefore remove 5 columns
+outlist[1:5] <- NULL
+
+#make dataframe
+t9 <- outlist
+names(t9) <- ASVs
+t9$ASV1
+t10 <- do.call(rbind.data.frame, t9)
+t10 <- rownames_to_column(t10)
+t10[5:6] <- str_split_fixed(t10$rowname,fixed('.'),2)
+t10 <- rename(t10, ASV = V5,
+                   site = V6)
+t11 <- select(t10, ASV, site, psi, theta, p ) 
+
+write.csv(t11, "C:/Users/FABS/Documents/eDNA Thesis/R_/occupancy modelling/eDNAoccupancy/occdata.csv")
+
+########## model selection ########### in development
+plotTrace(t4, c('beta.factor(site)0mSB15', 'alpha.factor(site)0mSB15', 'delta.(Intercept)'), burnin = 1)
+ 
+   

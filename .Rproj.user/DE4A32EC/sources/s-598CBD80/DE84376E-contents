@@ -1,0 +1,112 @@
+library(jagsUI)
+library(tidyverse)
+
+##### extracting results from eDNAoccupancy models ####
+t2 <- readRDS(choose.files()) #outlistv2
+ASVs <- read_rds(choose.files()) #ASVs_id
+
+#run for PSI, theta and p
+newlist <- list()
+for(i in 2:5607){
+  t4 <- as.data.frame(t2[i])
+  t5 <- t(t4$p)
+  newlist[[length(newlist)+1]] = t5
+}
+t6  = as.data.frame(do.call(rbind, newlist))
+t6$ASV <- ASVs
+t6 <- column_to_rownames(t6, "ASV")
+sites <- row.names(t4) 
+colnames(t6) <- sites
+#save for PSI, theta and p as well
+saveRDS(t6,"C:/Users/FABS/Documents/eDNA Thesis/R_/occupancy modelling/eDNAoccupancy/p_by_site.RData")
+
+#### Plotting #####
+
+psi <- read_rds(choose.files())  #PSI_by_site
+theta <- read_rds(choose.files())  #Ptheta_by_site
+p <- read_rds(choose.files())  #p_by_site
+
+# create binary data for comparison with other models
+psi_binom <- ifelse(psi > 0.8, 1,0)
+write.csv(psi_binom, "C:/Users/FABS/Documents/eDNA Thesis/R_/occupancy modelling/eDNAoccupancy/occ_by_site_EdOc.csv")
+
+#make long data fpr plotting
+psi.long <- gather(psi, site, prob)
+theta.long <- gather(theta, site, prob)
+p.long <- gather(p, site, prob)
+
+#plotting
+#psi
+ggplot(psi.long, aes(prob)) +
+  geom_histogram(binwidth = 0.05) +
+  theme_classic() +
+  xlab("occupancy probability") +
+  ylab("number of detections (n = 8375)") +
+  geom_vline(xintercept = 0.8, linetype = "dashed") +
+  ggtitle("distribution of occupancy probabilities")
+#theta
+ggplot(theta.long, aes(prob)) +
+  geom_histogram(binwidth = 0.0005) +
+  theme_classic() +
+  xlab("occupancy probability") +
+  ylab("number of detections (n = 8375)") +
+  ggtitle("distribution of occupancy probabilities")
+#p
+ggplot(p.long, aes(prob)) +
+  geom_histogram(binwidth = 0.005) +
+  theme_classic() +
+  xlab("occupancy probability") +
+  ylab("number of detections (n = 8375)") +
+  geom_vline(xintercept = 0.8, linetype = "dashed") +
+  ggtitle("distribution of occupancy probabilities")
+
+
+
+
+#####plotting Royal Link Model#######
+t5 <- read.csv("C:/Users/FABS/Documents/eDNA Thesis/R_/occupancy modelling/KellyLab/occprob_v2_royallink.csv")
+# make the data ####
+po0 <- as.data.frame(t5$PoO.0)
+po0 <- rename(po0, prob = 't5$PoO.0')
+po0$pos_reps <- 0
+head(po0)
+
+po1 <- as.data.frame(t5$PoO.1)
+po1 <- rename(po1, prob = 't5$PoO.1')
+po1$pos_reps <- 1
+head(po1)
+
+po2 <- as.data.frame(t5$PoO.2)
+po2 <- rename(po2, prob = 't5$PoO.2')
+po2$pos_reps <- 2
+head(po2)
+
+po3 <- as.data.frame(t5$PoO.3)
+po3 <- rename(po3, prob = 't5$PoO.3')
+po3$pos_reps <- 3
+head(po3)
+
+reps_occprob <- rbind(po0, po1, po2, po3)
+# plot the data####
+#t8 <- t7[1:300,]
+ ggplot(reps_occprob, aes(factor(pos_reps), prob)) +
+        scale_y_continuous(breaks = seq(0,1,0.2)) +
+        geom_violin(scale = "width", trim = F, adjust = 2, size = 0.5, fill = "grey") +
+        theme_classic( base_size = 12) +
+        xlab("number of positive detection in 3 PCR replicates (8375 ASVs)") +
+        ylab("occupancy probability") +
+        geom_hline(yintercept = 0.8, linetype = "dashed") +
+        annotate("text", x=1, y = 0.835, label = "80% probability threshold") +
+        ggtitle("Occupancy Probability by replicate PCR - RL model")
+
+
+ ggplot(reps_occprob, aes(prob)) +
+         geom_histogram(binwidth = 0.005) +
+         theme_classic() +
+         xlab("occupancy probability") +
+         ylab("number of detections (n = 8375)") +
+         geom_vline(xintercept = 0.8, linetype = "dashed") +
+         annotate("text", x=0.785, y = 4000, angle = 90, label = "80% probability threshold") +
+         ggtitle("distribution of occupancy probabilities")
+ 
+       
