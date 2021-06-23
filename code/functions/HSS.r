@@ -112,7 +112,7 @@ getHipSample <- function(X, Y, index = NULL, N = NULL, bb,  base = c(2,3), seed 
 		floor((y + 2*.Machine$double.eps)*By))]
 
 		# Permute the boxes for the new method of adding "extra" randomness.
-		dat[, c("Ix.new", "Iy.new") := list(permutation_B(Ji = J[1], bi = 2, si = Ps1)[Ix+1], permutation_B(Ji = J[2], bi = 3, si = Ps2)[Iy+1])] # Add one since indices include 0
+		dat[, c("Ix.new", "Iy.new") := list(permutation_B(Ji = J.index[1], bi = 2, si = Ps1)[Ix+1], permutation_B(Ji = J.index[2], bi = 3, si = Ps2)[Iy+1])] # Add one since indices include 0
 
 		haltonIndex <- BASMasterSample:::SolveCongruence(cbind(dat$Ix.new, dat$Iy.new), base = c(2,3), J = J.index)
 
